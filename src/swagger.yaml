@@ -1,0 +1,189 @@
+openapi: 3.0.0
+info:
+  title: Votely API Documentation
+  version: 1.0.0
+  description: API cho hệ thống bình chọn Votely (Node.js + Vue.js)
+servers:
+  - url: http://localhost:8083/v1/api
+    description: Local Server
+
+tags:
+  - name: Auth
+    description: Quản lý xác thực và người dùng
+
+paths:
+  /register:
+    post:
+      tags: [Auth]
+      summary: Đăng ký người dùng mới
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        201:
+          description: Tạo user thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        400:
+          description: Lỗi validation hoặc Email đã tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /login:
+    post:
+      tags: [Auth]
+      summary: Đăng nhập hệ thống
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        200:
+          description: Đăng nhập thành công (Trả về AccessToken và Set Cookie RefreshToken)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginSuccessResponse"
+        401:
+          description: Sai email hoặc mật khẩu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        500:
+          description: Lỗi hệ thống (Thiếu JWT Secret hoặc lỗi DB)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /me:
+    get:
+      tags: [Auth]
+      summary: Lấy thông tin người dùng hiện tại
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Lấy thông tin user thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        401:
+          description: Unauthorized hoặc token không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /logout:
+    post:
+      tags: [Auth]
+      summary: Đăng xuất và xóa refresh token cookie
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Logout thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        401:
+          description: Unauthorized hoặc token hết hạn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    # --- Models ---
+    User:
+      type: object
+      properties:
+        _id: { type: string, example: "645a..." }
+        firstName: { type: string, example: "Thạch" }
+        lastName: { type: string, example: "Bùi" }
+        email: { type: string, example: "thach@gmail.com" }
+        phone:
+          type: string
+          example: "0901234567"
+          description: "Bắt đầu bằng 0 hoặc +84"
+        createdAt: { type: string, format: date-time }
+
+    # --- Inputs ---
+    RegisterInput:
+      type: object
+      required: [firstName, lastName, email, password, confirmPassword, terms]
+      properties:
+        firstName: { type: string }
+        lastName: { type: string }
+        email: { type: string }
+        phone:
+          type: string
+          example: "0901234567"
+          description: "Bắt đầu bằng 0 hoặc +84"
+        password: { type: string, format: password }
+        confirmPassword: { type: string, format: password }
+        terms: { type: boolean, example: true }
+        marketing_emails: { type: boolean, example: false }
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, example: "huyen@gmail.com" }
+        password: { type: string, example: "123456" }
+
+    # --- Responses ---
+    SuccessResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data: { $ref: "#/components/schemas/User" }
+        message: { type: string }
+        errors: { type: "null", example: null }
+
+    EmptySuccessResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data: { type: "null", example: null }
+        message: { type: string }
+        errors: { type: "null", example: null }
+
+    LoginSuccessResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            accessToken: { type: string }
+            user: { $ref: "#/components/schemas/User" }
+        message: { type: string }
+        errors: { type: "null", example: null }
+
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        data: { type: "null", example: null }
+        message: { type: string }
+        errors: { type: object, nullable: true }
