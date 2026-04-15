@@ -13,16 +13,16 @@ const registerSchema = joi_1.default.object({
         .pattern(/^(0\d{9}|\+84\s?\d{9})$/)
         .required()
         .messages({
-        "string.pattern.base": "Phone must start with 0 or +84 and have 10 digits total.",
+        'string.pattern.base': 'Phone must start with 0 or +84 and have 10 digits total.',
     }),
     password: joi_1.default.string().min(6).required(),
     confirmPassword: joi_1.default.any()
-        .valid(joi_1.default.ref("password"))
+        .valid(joi_1.default.ref('password'))
         .required()
-        .messages({ "any.only": "Passwords do not match." }),
+        .messages({ 'any.only': 'Passwords do not match.' }),
     terms: joi_1.default.boolean().valid(true).required().messages({
-        "any.only": "You must accept the Terms & Conditions.",
-        "any.required": "You must accept the Terms & Conditions.",
+        'any.only': 'You must accept the Terms & Conditions.',
+        'any.required': 'You must accept the Terms & Conditions.',
     }),
     marketing_emails: joi_1.default.boolean().default(false),
 });

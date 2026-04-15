@@ -1,5 +1,6 @@
 import express, { Application } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import path from 'path';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
@@ -7,8 +8,8 @@ import YAML from 'yamljs';
 import apiRoutes from './routes/api';
 import helmet from 'helmet';
 import { Request, Response, NextFunction } from 'express';
-import { apiLimiter } from './middlewares/rateLimiter';
-
+import { apiLimiter } from './middlewares/rate-limiter.middleware';
+import { AppError } from './utils/app-error.util';
 const app: Application = express();
 
 app.use(
@@ -38,15 +39,39 @@ app.use(
     },
   }),
 );
+const buildCorsOrigins = (): string[] => {
+  const raw = process.env.FRONTEND_ORIGIN;
+  if (!raw) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('FRONTEND_ORIGIN must be set in production');
+    }
+    return ['http://localhost:5173'];
+  }
+  return raw
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+};
+
+const allowedOrigins = buildCorsOrigins();
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_ORIGIN || true,
+    origin: (origin, callback) => {
+      // Cho phép request không có origin (ví dụ: curl, mobile app, server-to-server)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin '${origin}' not allowed`));
+      }
+    },
     credentials: true,
   }),
 );
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 app.use('/v1/api', apiLimiter);
 
 try {
@@ -66,21 +91,31 @@ app.use((req: Request, res: Response) => {
   });
 });
 
-app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof SyntaxError && 'body' in err) {
     return res.status(400).json({
       success: false,
       message: 'Invalid JSON payload',
-      errors: err.message,
+      errors: null,
     });
   }
 
-  const error = err as Error & { statusCode?: number; errors?: unknown };
+  if (err instanceof AppError) {
+    const appErr = err as AppError;
+    return res.status(appErr.statusCode).json({
+      success: false,
+      message: appErr.message,
+      errors: null,
+    });
+  }
 
-  return res.status(error.statusCode || 500).json({
+  console.error('[UnhandledError]', err);
+  const error = err as Error;
+  return res.status(500).json({
     success: false,
-    message: error.message || 'Internal Server Error',
-    errors: process.env.NODE_ENV === 'development' ? error.stack : null,
+    message: 'Hệ thống đang gặp sự cố, vui lòng thử lại sau',
+    errors:
+      process.env.NODE_ENV === 'development' ? (error.stack ?? null) : null,
   });
 });
 

@@ -49,18 +49,21 @@ const userSchema = new mongoose_1.Schema({
         required: true,
         trim: true,
     },
-    role: {
-        type: String,
-        enum: ["voter", "admin"],
-        default: "voter",
+    password: { type: String, required: true, select: false },
+}, {
+    timestamps: true,
+    toJSON: {
+        transform: (_, ret) => {
+            delete ret.password;
+            return ret;
+        },
     },
-    password: { type: String, required: true },
-}, { timestamps: true });
-userSchema.methods.toJSON = function () {
-    const obj = this.toObject();
-    delete obj.password;
-    delete obj.role;
-    return obj;
-};
-const User = mongoose_1.default.model("User", userSchema);
+    toObject: {
+        transform: (_, ret) => {
+            delete ret.password;
+            return ret;
+        },
+    },
+});
+const User = mongoose_1.default.model('User', userSchema);
 exports.default = User;

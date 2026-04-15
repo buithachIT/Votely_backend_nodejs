@@ -3,86 +3,102 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getUserService = exports.refreshTokenService = exports.loginService = exports.createUserService = void 0;
+exports.getUserService = exports.logoutService = exports.refreshTokenService = exports.loginService = exports.createUserService = void 0;
+const type_guards_util_1 = require("@/utils/type-guards.util");
 const user_model_1 = __importDefault(require("../models/user.model"));
+const refresh_token_model_1 = __importDefault(require("../models/refresh-token.model"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const app_error_util_1 = require("@/utils/app-error.util");
+const expired_jwt_1 = require("@/config/expired-jwt");
+const auth_util_1 = require("@/utils/auth.util");
 const createUserService = async (firstName, lastName, email, phone, password) => {
     try {
         const hashedPassword = await bcrypt_1.default.hash(password, 10);
-        let result = await user_model_1.default.create({
+        const result = await user_model_1.default.create({
             firstName: firstName,
             lastName: lastName,
             email: email,
             phone: phone,
-            role: "voter",
             password: hashedPassword,
         });
         return result;
     }
     catch (error) {
-        console.log(error);
-        const err = error;
-        if (err.code === 11000 && err.keyPattern.email) {
-            throw new Error("Existing email");
+        if ((0, type_guards_util_1.isMongoError)(error) && error.code === 11000) {
+            throw new app_error_util_1.AppError('Email đã tồn tại', 400);
         }
         throw error;
     }
 };
 exports.createUserService = createUserService;
 const loginService = async (email, password) => {
-    try {
-        const user = await user_model_1.default.findOne({ email: email }).select("+password");
-        if (!user) {
-            throw new Error("Invalid email or password");
-        }
-        const isMatch = await bcrypt_1.default.compare(password, user.password || "");
-        if (!isMatch) {
-            throw new Error("Invalid email or password");
-        }
-        let jwtSecretKey = process.env.JWT_SECRET_KEY;
-        if (!jwtSecretKey) {
-            throw new Error("Missing JWT_SECRET_KEY");
-        }
-        const refreshSecret = process.env.JWT_REFRESH_SECRET || jwtSecretKey;
-        const refreshToken = jsonwebtoken_1.default.sign({ sub: user._id.toString() }, refreshSecret, { expiresIn: "7d" });
-        const accessToken = jsonwebtoken_1.default.sign({ sub: user._id.toString(), role: user.role }, jwtSecretKey, { expiresIn: "15m" });
-        return { accessToken, refreshToken, user };
+    const user = await user_model_1.default.findOne({ email: email }).select('+password');
+    if (!user || !(await bcrypt_1.default.compare(password, user.password || ''))) {
+        throw new app_error_util_1.AppError('Email hoặc mật khẩu không đúng', 401);
     }
-    catch (err) {
-        const error = err;
-        console.error("[loginService] error:", error.message);
-        throw error;
-    }
+    const { accessToken, refreshToken } = (0, auth_util_1.generateTokens)(user.id);
+    await refresh_token_model_1.default.create({
+        tokenHash: (0, auth_util_1.hashToken)(refreshToken),
+        userId: user._id,
+        expiresAt: new Date(Date.now() + expired_jwt_1.EXPIRED_TOKEN.EXPIRED_REFRESH_TOKEN),
+    });
+    return { accessToken, refreshToken, user };
 };
 exports.loginService = loginService;
 const refreshTokenService = async (refreshToken) => {
     const refreshSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET_KEY;
     if (!refreshSecret) {
-        throw new Error("Missing JWT_SECRET_KEY");
+        throw new app_error_util_1.AppError('Server configuration missing secret keys', 500);
     }
-    const decoded = jsonwebtoken_1.default.verify(refreshToken, refreshSecret);
-    const userId = decoded.sub;
-    const user = await user_model_1.default.findById(userId);
-    if (!user) {
-        throw new Error("User not found");
+    try {
+        const decoded = jsonwebtoken_1.default.verify(refreshToken, refreshSecret);
+        const userId = decoded.sub;
+        const stored = await refresh_token_model_1.default.findOneAndDelete({
+            tokenHash: (0, auth_util_1.hashToken)(refreshToken),
+            userId,
+        });
+        if (!stored) {
+            throw new app_error_util_1.AppError('Phiên làm việc không hợp lệ hoặc đã bị thu hồi', 401);
+        }
+        const user = await user_model_1.default.findById(userId);
+        if (!user)
+            throw new app_error_util_1.AppError('Tài khoản không tồn tại hoặc bị khóa', 404);
+        const tokens = (0, auth_util_1.generateTokens)(user.id);
+        await refresh_token_model_1.default.create({
+            tokenHash: (0, auth_util_1.hashToken)(tokens.refreshToken),
+            userId: user._id,
+            expiresAt: new Date(Date.now() + expired_jwt_1.EXPIRED_TOKEN.EXPIRED_REFRESH_TOKEN),
+        });
+        return {
+            ...tokens,
+            user: user.toObject(),
+        };
     }
-    const newRefreshToken = jsonwebtoken_1.default.sign({ sub: userId }, refreshSecret, { expiresIn: "7d" });
-    const accessToken = jsonwebtoken_1.default.sign({ sub: userId, role: user.role }, process.env.JWT_SECRET_KEY, { expiresIn: "15m" });
-    return { accessToken, refreshToken: newRefreshToken, user };
+    catch (error) {
+        if (error instanceof jsonwebtoken_1.default.TokenExpiredError)
+            throw new app_error_util_1.AppError('Phiên đăng nhập hết hạn', 401);
+        if (error instanceof jsonwebtoken_1.default.JsonWebTokenError)
+            throw new app_error_util_1.AppError('Token không hợp lệ', 401);
+        throw error;
+    }
 };
 exports.refreshTokenService = refreshTokenService;
+const logoutService = async (refreshToken) => {
+    await refresh_token_model_1.default.deleteOne({ tokenHash: (0, auth_util_1.hashToken)(refreshToken) });
+};
+exports.logoutService = logoutService;
 const getUserService = async (userId) => {
     try {
         const user = await user_model_1.default.findById(userId);
         if (!user) {
-            throw new Error("User not found");
+            throw new app_error_util_1.AppError('Tài khoản không tồn tại hoặc bị khóa', 404);
         }
         return user;
     }
     catch (err) {
         const error = err;
-        console.error("[getUserService] error:", error.message);
+        console.error('[getUserService] error:', error.message);
         throw error;
     }
 };

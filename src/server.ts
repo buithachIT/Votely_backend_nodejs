@@ -1,10 +1,10 @@
-import dotenv from "dotenv";
+import dotenv from 'dotenv';
 dotenv.config();
-import validateEnv from "./config/validateEnv";
+import validateEnv from './config/validate-env';
 
 validateEnv();
-import connection from "./config/database";
-import app from "./app";
+import connection from './config/database';
+import app from './app';
 
 const port = process.env.PORT || 8083;
 
@@ -20,9 +20,9 @@ const port = process.env.PORT || 8083;
     });
   } catch (error: unknown) {
     if (error instanceof Error) {
-      console.error("❌ Lỗi khởi động server:", error.message);
+      console.error('❌ Lỗi khởi động server:', error.message);
     } else {
-      console.error("❌ Lỗi không xác định:", error);
+      console.error('❌ Lỗi không xác định:', error);
     }
     process.exit(1);
   }

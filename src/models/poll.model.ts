@@ -10,7 +10,6 @@ interface IPoll extends Document {
     votes: number;
     image?: string;
   }>;
-  votedUsers: mongoose.Types.ObjectId[];
   multipleSelection: boolean;
   maxSelections: number;
   isActive: boolean;
@@ -41,19 +40,12 @@ const pollSchema = new Schema<IPoll>(
         image: { type: String, trim: true },
       },
     ],
-    votedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     multipleSelection: { type: Boolean, default: false },
     maxSelections: { type: Number, default: 1 },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true },
 );
-
-pollSchema.index({ code: 1 });
-pollSchema.methods.toJSON = function () {
-  const obj = this.toObject();
-  return obj;
-};
 
 const Poll = mongoose.model<IPoll>('Poll', pollSchema);
 export default Poll;

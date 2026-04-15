@@ -10,7 +10,7 @@ import {
   loginLimiter,
   registerLimiter,
   authMiddleware,
-} from '../middlewares/rateLimiter';
+} from '../middlewares/rate-limiter.middleware';
 import { validateBody } from '@/middlewares/validation.middleware';
 import { loginSchema, registerSchema } from '@/schema/user.schema';
 
