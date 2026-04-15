@@ -37,16 +37,16 @@ const mongoose_1 = __importStar(require("mongoose"));
 const voteSchema = new mongoose_1.Schema({
     pollId: {
         type: mongoose_1.default.Schema.Types.ObjectId,
-        ref: "Poll",
+        ref: 'Poll',
         required: true,
     },
     userId: {
         type: mongoose_1.default.Schema.Types.ObjectId,
-        ref: "User",
+        ref: 'User',
         required: true,
     },
     selectedOptions: [{ type: mongoose_1.default.Schema.Types.ObjectId, required: true }],
 }, { timestamps: true });
 voteSchema.index({ pollId: 1, userId: 1 }, { unique: true });
-const Vote = mongoose_1.default.model("Vote", voteSchema);
+const Vote = mongoose_1.default.model('Vote', voteSchema);
 exports.default = Vote;

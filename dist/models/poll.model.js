@@ -46,7 +46,7 @@ const pollSchema = new mongoose_1.Schema({
     },
     createdBy: {
         type: mongoose_1.default.Schema.Types.ObjectId,
-        ref: "User",
+        ref: 'User',
         required: true,
     },
     options: [
@@ -56,15 +56,9 @@ const pollSchema = new mongoose_1.Schema({
             image: { type: String, trim: true },
         },
     ],
-    votedUsers: [{ type: mongoose_1.default.Schema.Types.ObjectId, ref: "User" }],
     multipleSelection: { type: Boolean, default: false },
     maxSelections: { type: Number, default: 1 },
     isActive: { type: Boolean, default: true },
 }, { timestamps: true });
-pollSchema.index({ code: 1 });
-pollSchema.methods.toJSON = function () {
-    const obj = this.toObject();
-    return obj;
-};
-const Poll = mongoose_1.default.model("Poll", pollSchema);
+const Poll = mongoose_1.default.model('Poll', pollSchema);
 exports.default = Poll;

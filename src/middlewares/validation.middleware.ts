@@ -1,6 +1,6 @@
-import { sendError } from "@/helpers/response.helper";
-import { NextFunction, Request, Response } from "express";
-import { ObjectSchema } from "joi";
+import { sendError } from '@/helpers/response.helper';
+import { NextFunction, Request, Response } from 'express';
+import { ObjectSchema } from 'joi';
 
 const validateBody = (schema: ObjectSchema) => {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -10,10 +10,18 @@ const validateBody = (schema: ObjectSchema) => {
       stripUnknown: true,
     });
     if (error) {
-      const messages = error.details.map((detail) => detail.message).join(", ");
+      const errors = error.details.reduce<Record<string, string>>(
+        (acc, detail) => {
+          const field = detail.path.join('.');
+          acc[field] = detail.message.replace(/['"]/g, '');
+          return acc;
+        },
+        {},
+      );
       return sendError(res, {
-        message: messages,
+        message: 'Dữ liệu không hợp lệ',
         statusCode: 400,
+        errors,
       });
     }
     req.body = value;

@@ -10,10 +10,15 @@ const validateBody = (schema) => {
             stripUnknown: true,
         });
         if (error) {
-            const messages = error.details.map((detail) => detail.message).join(", ");
+            const errors = error.details.reduce((acc, detail) => {
+                const field = detail.path.join('.');
+                acc[field] = detail.message.replace(/['"]/g, '');
+                return acc;
+            }, {});
             return (0, response_helper_1.sendError)(res, {
-                message: messages,
+                message: 'Dữ liệu không hợp lệ',
                 statusCode: 400,
+                errors,
             });
         }
         req.body = value;

@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendError = exports.sendSuccess = void 0;
-const sendSuccess = (res, { data = null, message = "Success", statusCode = 200 } = {}) => {
+const sendSuccess = (res, { data = null, message = 'Success', statusCode = 200 } = {}) => {
     return res.status(statusCode).json({
         success: true,
         data,
@@ -10,7 +10,7 @@ const sendSuccess = (res, { data = null, message = "Success", statusCode = 200 }
     });
 };
 exports.sendSuccess = sendSuccess;
-const sendError = (res, { message = "Error", statusCode = 500, errors = null } = {}) => {
+const sendError = (res, { message = 'Error', statusCode = 500, errors = null } = {}) => {
     return res.status(statusCode).json({
         success: false,
         data: null,
