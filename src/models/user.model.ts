@@ -9,13 +9,13 @@ import {
   schemaOptions: {
     timestamps: true,
     toJSON: {
-      transform: (_, ret) => {
+      transform: (_: mongoose.Document, ret: Record<string, unknown>) => {
         delete ret.password;
         return ret;
       },
     },
     toObject: {
-      transform: (_, ret) => {
+      transform: (_: mongoose.Document, ret: Record<string, unknown>) => {
         delete ret.password;
         return ret;
       },

@@ -1,12 +1,12 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import { mongoose } from '@typegoose/typegoose';
 
-interface IRefreshToken extends Document {
+interface IRefreshToken extends mongoose.Document {
   tokenHash: string;
   userId: mongoose.Types.ObjectId;
   expiresAt: Date;
 }
 
-const refreshTokenSchema = new Schema<IRefreshToken>({
+const refreshTokenSchema = new mongoose.Schema<IRefreshToken>({
   tokenHash: { type: String, required: true, unique: true },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   expiresAt: { type: Date, required: true },
