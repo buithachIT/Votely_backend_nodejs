@@ -1,5 +1,5 @@
 import { isMongoError } from '@/utils/type-guards.util';
-import User from '../models/user.model';
+import UserModel, { User } from '../models/user.model';
 import RefreshToken from '../models/refresh-token.model';
 import bcrypt from 'bcrypt';
 import jwt, { JwtPayload } from 'jsonwebtoken';
@@ -17,7 +17,7 @@ export const createUserService = async (
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const result = await User.create({
+    const result = await UserModel.create({
       firstName: firstName,
       lastName: lastName,
       email: email,
@@ -34,7 +34,7 @@ export const createUserService = async (
 };
 
 export const loginService = async (email: string, password: string) => {
-  const user = await User.findOne({ email: email }).select('+password');
+  const user = await UserModel.findOne({ email: email }).select('+password');
 
   if (!user || !(await bcrypt.compare(password, user.password || ''))) {
     throw new AppError('Email hoặc mật khẩu không đúng', 401);
@@ -71,7 +71,7 @@ export const refreshTokenService = async (refreshToken: string) => {
       throw new AppError('Phiên làm việc không hợp lệ hoặc đã bị thu hồi', 401);
     }
 
-    const user = await User.findById(userId);
+    const user = await UserModel.findById(userId);
     if (!user) throw new AppError('Tài khoản không tồn tại hoặc bị khóa', 404);
 
     const tokens = generateTokens(user.id);
@@ -99,16 +99,10 @@ export const logoutService = async (refreshToken: string) => {
   await RefreshToken.deleteOne({ tokenHash: hashToken(refreshToken) });
 };
 
-export const getUserService = async (userId: string) => {
-  try {
-    const user = await User.findById(userId);
-    if (!user) {
-      throw new AppError('Tài khoản không tồn tại hoặc bị khóa', 404);
-    }
-    return user;
-  } catch (err: unknown) {
-    const error = err as Error;
-    console.error('[getUserService] error:', error.message);
-    throw error;
+export const getUserService = async (userId: string): Promise<User> => {
+  const user = await UserModel.findById(userId);
+  if (!user) {
+    throw new AppError('Tài khoản không tồn tại hoặc bị khóa', 404);
   }
+  return user;
 };

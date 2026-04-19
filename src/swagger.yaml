@@ -8,10 +8,38 @@ servers:
     description: Local Server
 
 tags:
+  - name: Health
+    description: Kiểm tra trạng thái server
   - name: Auth
     description: Quản lý xác thực và người dùng
+  - name: Polls
+    description: Quản lý các cuộc bình chọn
 
 paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Kiểm tra trạng thái server
+      description: Endpoint này trả về thông tin trạng thái server và hướng dẫn cách sử dụng API
+      responses:
+        200:
+          description: Server healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string, example: '🚀 Server is running' }
+                  instructions:
+                    type: object
+                    properties:
+                      step1: { type: string }
+                      step2: { type: string }
+                      step3: { type: string }
+                      step4: { type: string }
+                      step5: { type: string }
+
   /register:
     post:
       tags: [Auth]
@@ -21,20 +49,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RegisterInput"
+              $ref: '#/components/schemas/RegisterInput'
       responses:
         201:
           description: Tạo user thành công
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
+                $ref: '#/components/schemas/SuccessResponse'
         400:
           description: Lỗi validation hoặc Email đã tồn tại
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
 
   /login:
     post:
@@ -45,26 +73,26 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/LoginInput"
+              $ref: '#/components/schemas/LoginInput'
       responses:
         200:
           description: Đăng nhập thành công (Trả về AccessToken và Set Cookie RefreshToken)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LoginSuccessResponse"
+                $ref: '#/components/schemas/LoginSuccessResponse'
         401:
           description: Sai email hoặc mật khẩu
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
         500:
           description: Lỗi hệ thống (Thiếu JWT Secret hoặc lỗi DB)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
 
   /me:
     get:
@@ -78,13 +106,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
+                $ref: '#/components/schemas/SuccessResponse'
         401:
           description: Unauthorized hoặc token không hợp lệ
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
 
   /logout:
     post:
@@ -98,14 +126,262 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EmptySuccessResponse"
+                $ref: '#/components/schemas/EmptySuccessResponse'
         401:
           description: Unauthorized hoặc token hết hạn
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
+  /polls:
+    post:
+      tags: [Polls]
+      summary: Tạo cuộc bình chọn mới
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePollInput'
+      responses:
+        201:
+          description: Tạo poll thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PollSuccessResponse'
+        400:
+          description: Lỗi validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
+  /my-polls:
+    get:
+      tags: [Polls]
+      summary: Lấy danh sách các cuộc bình chọn của người dùng
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Lấy danh sách poll thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Poll'
+                  message: { type: string }
+                  errors: { type: 'null' }
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /polls/code/{code}:
+    get:
+      tags: [Polls]
+      summary: Lấy cuộc bình chọn theo mã code
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+            example: 'ABC123'
+      responses:
+        200:
+          description: Lấy poll thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PollSuccessResponse'
+        404:
+          description: Poll không tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /polls/{id}:
+    get:
+      tags: [Polls]
+      summary: Lấy chi tiết cuộc bình chọn theo ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: '645a...'
+      responses:
+        200:
+          description: Lấy poll thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PollSuccessResponse'
+        404:
+          description: Poll không tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      tags: [Polls]
+      summary: Cập nhật thông tin cuộc bình chọn
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePollInput'
+      responses:
+        200:
+          description: Cập nhật poll thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PollSuccessResponse'
+        404:
+          description: Poll không tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        403:
+          description: Không có quyền cập nhật poll này
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags: [Polls]
+      summary: Xóa cuộc bình chọn
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: Xóa poll thành công
+        404:
+          description: Poll không tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        403:
+          description: Không có quyền xóa poll này
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /polls/{id}/close:
+    patch:
+      tags: [Polls]
+      summary: Đóng cuộc bình chọn (ngừng nhận bình chọn)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Đóng poll thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PollSuccessResponse'
+        404:
+          description: Poll không tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        403:
+          description: Không có quyền đóng poll này
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /polls/{id}/vote:
+    post:
+      tags: [Polls]
+      summary: Bình chọn trong cuộc bình chọn
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoteInput'
+      responses:
+        201:
+          description: Bình chọn thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoteSuccessResponse'
+        400:
+          description: Lỗi validation hoặc đã bình chọn rồi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        404:
+          description: Poll không tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   securitySchemes:
     bearerAuth:
@@ -117,16 +393,67 @@ components:
     User:
       type: object
       properties:
-        _id: { type: string, example: "645a..." }
-        firstName: { type: string, example: "Thạch" }
-        lastName: { type: string, example: "Bùi" }
-        email: { type: string, example: "thach@gmail.com" }
+        _id: { type: string, example: '645a...' }
+        firstName: { type: string, example: 'Thạch' }
+        lastName: { type: string, example: 'Bùi' }
+        email: { type: string, example: 'thach@gmail.com' }
         phone:
           type: string
-          example: "0901234567"
-          description: "Bắt đầu bằng 0 hoặc +84"
+          example: '0901234567'
+          description: 'Bắt đầu bằng 0 hoặc +84'
         createdAt: { type: string, format: date-time }
+    PollOption:
+      type: object
+      properties:
+        text: { type: string, example: 'Option 1' }
+        votes: { type: integer, example: 5, description: 'Số lượng bình chọn' }
+        image: { type: string, nullable: true, example: null }
 
+    Poll:
+      type: object
+      properties:
+        _id: { type: string, example: '645a...' }
+        title: { type: string, example: 'Bạn thích loại gì nhất?' }
+        description:
+          {
+            type: string,
+            nullable: true,
+            example: 'Bình chọn về loại ưa thích',
+          }
+        code:
+          {
+            type: string,
+            example: 'ABC123',
+            description: 'Mã code duy nhất của poll',
+          }
+        createdBy:
+          type: object
+          properties:
+            _id: { type: string }
+            username: { type: string }
+            email: { type: string }
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/PollOption'
+        multipleSelection: { type: boolean, example: false }
+        maxSelections: { type: integer, example: 1 }
+        isActive: { type: boolean, example: true }
+        votedUsers: { type: array, items: { type: string }, example: [] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Vote:
+      type: object
+      properties:
+        _id: { type: string, example: '645a...' }
+        pollId: { type: string, example: '645a...' }
+        userId: { type: string, example: '645a...' }
+        selectedOptions:
+          type: array
+          items: { type: string }
+          example: ['Option 1']
+        createdAt: { type: string, format: date-time }
     # --- Inputs ---
     RegisterInput:
       type: object
@@ -137,8 +464,8 @@ components:
         email: { type: string }
         phone:
           type: string
-          example: "0901234567"
-          description: "Bắt đầu bằng 0 hoặc +84"
+          example: '0901234567'
+          description: 'Bắt đầu bằng 0 hoặc +84'
         password: { type: string, format: password }
         confirmPassword: { type: string, format: password }
         terms: { type: boolean, example: true }
@@ -148,25 +475,66 @@ components:
       type: object
       required: [email, password]
       properties:
-        email: { type: string, example: "huyen@gmail.com" }
-        password: { type: string, example: "123456" }
+        email: { type: string, example: 'huyen@gmail.com' }
+        password: { type: string, example: '123456' }
+    CreatePollInput:
+      type: object
+      required: [title, options]
+      properties:
+        title: { type: string, example: 'Bạn thích loại gì nhất?' }
+        description:
+          { type: string, nullable: true, example: 'Mô tả cuộc bình chọn' }
+        options:
+          type: array
+          items:
+            type: object
+            required: [text]
+            properties:
+              text: { type: string, example: 'Option 1' }
+              image: { type: string, nullable: true }
+          minItems: 2
+          example:
+            - text: 'Option 1'
+            - text: 'Option 2'
+        multipleSelection:
+          {
+            type: boolean,
+            example: false,
+            description: 'Cho phép bình chọn nhiều lựa chọn',
+          }
+        maxSelections: { type: integer, example: 1, minimum: 1 }
 
+    UpdatePollInput:
+      type: object
+      properties:
+        title: { type: string, example: 'Bạn thích loại gì nhất?' }
+        description: { type: string, nullable: true }
+
+    VoteInput:
+      type: object
+      required: [selectedOptions]
+      properties:
+        selectedOptions:
+          type: array
+          items: { type: string }
+          example: ['Option 1']
+          description: 'Danh sách tên các lựa chọn được bình chọn'
     # --- Responses ---
     SuccessResponse:
       type: object
       properties:
         success: { type: boolean, example: true }
-        data: { $ref: "#/components/schemas/User" }
+        data: { $ref: '#/components/schemas/User' }
         message: { type: string }
-        errors: { type: "null", example: null }
+        errors: { type: 'null', example: null }
 
     EmptySuccessResponse:
       type: object
       properties:
         success: { type: boolean, example: true }
-        data: { type: "null", example: null }
+        data: { type: 'null', example: null }
         message: { type: string }
-        errors: { type: "null", example: null }
+        errors: { type: 'null', example: null }
 
     LoginSuccessResponse:
       type: object
@@ -176,14 +544,28 @@ components:
           type: object
           properties:
             accessToken: { type: string }
-            user: { $ref: "#/components/schemas/User" }
+            user: { $ref: '#/components/schemas/User' }
         message: { type: string }
-        errors: { type: "null", example: null }
+        errors: { type: 'null', example: null }
+    PollSuccessResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data: { $ref: '#/components/schemas/Poll' }
+        message: { type: string }
+        errors: { type: 'null', example: null }
 
+    VoteSuccessResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data: { $ref: '#/components/schemas/Vote' }
+        message: { type: string }
+        errors: { type: 'null', example: null }
     ErrorResponse:
       type: object
       properties:
         success: { type: boolean, example: false }
-        data: { type: "null", example: null }
+        data: { type: 'null', example: null }
         message: { type: string }
         errors: { type: object, nullable: true }

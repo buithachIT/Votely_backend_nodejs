@@ -1,6 +1,7 @@
 import rateLimit from 'express-rate-limit';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import { sendError } from '../helpers/response.helper';
 
 const apiLimiter = rateLimit({
@@ -8,7 +9,7 @@ const apiLimiter = rateLimit({
   max: 100,
   message: {
     status: 429,
-    message: 'Too many requests, please try later.',
+    message: 'Quá nhiều yêu cầu, vui lòng thử lại sau.',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -19,7 +20,7 @@ const loginLimiter = rateLimit({
   max: 5,
   message: {
     status: 429,
-    message: 'Too many login attempts, please try again later.',
+    message: 'Quá nhiều lần đăng nhập thất bại, vui lòng thử lại sau.',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -30,7 +31,7 @@ const registerLimiter = rateLimit({
   max: 5,
   message: {
     status: 429,
-    message: 'Too many registration attempts, please try again later.',
+    message: 'Quá nhiều lần đăng ký, vui lòng thử lại sau.',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -43,7 +44,7 @@ const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
 
     if (!token) {
       return sendError(res, {
-        message: 'Access token is required',
+        message: 'Yêu cầu token truy cập',
         statusCode: 401,
       });
     }
@@ -51,30 +52,32 @@ const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
     const jwtSecretKey = process.env.JWT_SECRET_KEY;
     if (!jwtSecretKey) {
       return sendError(res, {
-        message: 'Server misconfiguration',
+        message: 'Cấu hình server không hợp lệ',
         statusCode: 500,
       });
     }
 
     const decoded = jwt.verify(token, jwtSecretKey) as JwtPayload;
-    req.userId = decoded.sub as string;
+    req.user = {
+      _id: new mongoose.Types.ObjectId(decoded.sub as string),
+    };
     next();
   } catch (error) {
     const err = error as Error;
     if (err.name === 'TokenExpiredError') {
       return sendError(res, {
-        message: 'Token expired',
+        message: 'Token đã hết hạn',
         statusCode: 401,
       });
     }
     if (err.name === 'JsonWebTokenError') {
       return sendError(res, {
-        message: 'Invalid token',
+        message: 'Token không hợp lệ',
         statusCode: 401,
       });
     }
     sendError(res, {
-      message: 'Authentication failed',
+      message: 'Xác thực thất bại do lỗi hệ thống',
       statusCode: 401,
     });
   }

@@ -1,41 +1,43 @@
-import { IUser } from '@/types/user';
-import mongoose, { Schema } from 'mongoose';
+import {
+  prop,
+  getModelForClass,
+  modelOptions,
+  mongoose,
+} from '@typegoose/typegoose';
 
-const userSchema = new Schema<IUser>(
-  {
-    firstName: { type: String, required: true, trim: true },
-    lastName: { type: String, required: true, trim: true },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
-    phone: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-
-    password: { type: String, required: true, select: false },
-  },
-  {
+@modelOptions({
+  schemaOptions: {
     timestamps: true,
     toJSON: {
-      transform: (_, ret: Partial<IUser>) => {
+      transform: (_, ret) => {
         delete ret.password;
         return ret;
       },
     },
     toObject: {
-      transform: (_, ret: Partial<IUser>) => {
+      transform: (_, ret) => {
         delete ret.password;
         return ret;
       },
     },
   },
-);
+})
+export class User {
+  public _id!: mongoose.Types.ObjectId;
+  @prop({ required: true, trim: true })
+  public firstName!: string;
 
-const User = mongoose.model<IUser>('User', userSchema);
-export default User;
+  @prop({ required: true, trim: true })
+  public lastName!: string;
+
+  @prop({ required: true, unique: true, lowercase: true, trim: true })
+  public email!: string;
+
+  @prop({ required: true, trim: true })
+  public phone!: string;
+
+  @prop({ required: true, select: false })
+  public password!: string;
+}
+const UserModel = getModelForClass(User);
+export default UserModel;
