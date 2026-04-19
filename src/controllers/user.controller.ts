@@ -59,7 +59,7 @@ const handleLogin = catchAsync(async (req: Request, res: Response) => {
   });
 });
 const getCurrentUser = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.userId;
+  const userId = req.user?._id.toString();
 
   if (!userId) {
     throw new AppError('Bạn chưa đăng nhập hoặc phiên làm việc hết hạn', 401);
@@ -94,7 +94,7 @@ const handleRefreshToken = catchAsync(async (req: Request, res: Response) => {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
     path: '/',
-    maxAge: EXPIRED_TOKEN.EXPIRED_REFRESH_TOKEN, // 7 days
+    maxAge: EXPIRED_TOKEN.EXPIRED_REFRESH_TOKEN,
   });
 
   sendSuccess(res, {

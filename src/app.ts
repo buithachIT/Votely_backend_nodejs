@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import express, { Application } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -10,6 +11,7 @@ import helmet from 'helmet';
 import { Request, Response, NextFunction } from 'express';
 import { apiLimiter } from './middlewares/rate-limiter.middleware';
 import { AppError } from './utils/app-error.util';
+import { allowedOrigins } from './config/cors';
 const app: Application = express();
 
 app.use(
@@ -25,7 +27,7 @@ app.use(
         ],
         'img-src': ["'self'", 'data:', 'https://res.cloudinary.com'],
         'font-src': ["'self'", 'https://fonts.gstatic.com'],
-        'connect-src': ["'self'"],
+        'connect-src': ["'self'", 'ws:', 'wss:'],
       },
     },
     frameguard: {
@@ -39,30 +41,14 @@ app.use(
     },
   }),
 );
-const buildCorsOrigins = (): string[] => {
-  const raw = process.env.FRONTEND_ORIGIN;
-  if (!raw) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('FRONTEND_ORIGIN must be set in production');
-    }
-    return ['http://localhost:5173'];
-  }
-  return raw
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
-};
-
-const allowedOrigins = buildCorsOrigins();
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Cho phép request không có origin (ví dụ: curl, mobile app, server-to-server)
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error(`CORS: origin '${origin}' not allowed`));
+        callback(new AppError(`CORS: origin '${origin}' not allowed`, 403));
       }
     },
     credentials: true,
@@ -76,8 +62,19 @@ app.use('/v1/api', apiLimiter);
 
 try {
   const swaggerDocument = YAML.load(path.join(__dirname, './swagger.yaml'));
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-  console.log('Docs available at http://localhost:8083/api-docs');
+  const swaggerUiOptions = {
+    persistAuthorization: true,
+    swaggerOptions: {
+      persistAuthorization: true,
+      displayOperationId: true,
+      deepLinking: true,
+    },
+  };
+  app.use(
+    '/api-docs',
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerDocument, swaggerUiOptions),
+  );
 } catch (e) {
   console.error('Swagger load failed:', e instanceof Error ? e.message : e);
 }
@@ -109,13 +106,30 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
     });
   }
 
+  // Handle Mongoose Validation Error
+  if (err instanceof Error && err.name === 'ValidationError') {
+    return res.status(400).json({
+      success: false,
+      message: 'Dữ liệu không hợp lệ',
+      errors: null,
+    });
+  }
+
+  // Handle Mongoose Cast Error
+  if (err instanceof Error && err.name === 'CastError') {
+    return res.status(400).json({
+      success: false,
+      message: 'ID không hợp lệ',
+      errors: null,
+    });
+  }
+
   console.error('[UnhandledError]', err);
-  const error = err as Error;
+  // Never send stack trace to frontend - only to server logs
   return res.status(500).json({
     success: false,
     message: 'Hệ thống đang gặp sự cố, vui lòng thử lại sau',
-    errors:
-      process.env.NODE_ENV === 'development' ? (error.stack ?? null) : null,
+    errors: null,
   });
 });
 

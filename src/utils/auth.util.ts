@@ -14,8 +14,12 @@ export const generateTokens = (userId: string) => {
     throw new AppError('Missing JWT_SECRET_KEY', 500);
   }
 
+  // Dev: 30 seconds for easy testing, Prod: 15m
+  const accessTokenExpiry =
+    process.env.NODE_ENV === 'production' ? '15m' : '7d';
+
   const accessToken = jwt.sign({ sub: userId }, accessTokenSecret, {
-    expiresIn: '15m',
+    expiresIn: accessTokenExpiry,
   });
 
   const refreshToken = jwt.sign({ sub: userId }, refreshTokenSecret!, {
